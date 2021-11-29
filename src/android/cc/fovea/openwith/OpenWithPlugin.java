@@ -4,6 +4,8 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
+
+import java.io.File;
 import java.util.Arrays;
 import java.util.ArrayList;
 import org.apache.cordova.CallbackContext;
@@ -244,7 +246,8 @@ public class OpenWithPlugin extends CordovaPlugin {
         try {
             final ContentResolver contentResolver = this.cordova
                 .getActivity().getApplicationContext().getContentResolver();
-            return Serializer.toJSONObject(contentResolver, intent);
+            final File cacheDir = this.cordova.getContext().getCacheDir();
+            return Serializer.toJSONObject(contentResolver, intent, cacheDir);
         } catch (JSONException e) {
             log(ERROR, "Error converting intent to JSON: " + e.getMessage());
             log(ERROR, Arrays.toString(e.getStackTrace()));

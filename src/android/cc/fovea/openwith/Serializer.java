@@ -1,5 +1,7 @@
 package cc.fovea.openwith;
 
+import android.graphics.Bitmap;
+
 import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
@@ -9,8 +11,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Size;
+
+import java.util.UUID;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.File;
+import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,17 +37,18 @@ class Serializer {
      */
     public static JSONObject toJSONObject(
             final ContentResolver contentResolver,
-            final Intent intent)
+            final Intent intent,
+            final File cacheDir)
             throws JSONException {
         JSONArray items = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            items = itemsFromClipData(contentResolver, intent.getClipData());
+            items = itemsFromClipData(contentResolver, intent.getClipData(), cacheDir);
         }
         if (items == null || items.length() == 0) {
-            items = itemsFromExtras(contentResolver, intent.getExtras());
+            items = itemsFromExtras(contentResolver, intent.getExtras(), cacheDir);
         }
         if (items == null || items.length() == 0) {
-            items = itemsFromData(contentResolver, intent.getData());
+            items = itemsFromData(contentResolver, intent.getData(), cacheDir);
         }
         if (items == null) {
             return null;
@@ -75,13 +85,14 @@ class Serializer {
      * Defaults to null. */
     public static JSONArray itemsFromClipData(
             final ContentResolver contentResolver,
-            final ClipData clipData)
+            final ClipData clipData,
+            final File cacheDir)
             throws JSONException {
         if (clipData != null) {
             final int clipItemCount = clipData.getItemCount();
             JSONObject[] items = new JSONObject[clipItemCount];
             for (int i = 0; i < clipItemCount; i++) {
-                items[i] = toJSONObject(contentResolver, clipData.getItemAt(i).getUri());
+                items[i] = toJSONObject(contentResolver, clipData.getItemAt(i).getUri(), cacheDir);
             }
             return new JSONArray(items);
         }
@@ -93,14 +104,16 @@ class Serializer {
      * See Intent.EXTRA_STREAM for details. */
     public static JSONArray itemsFromExtras(
             final ContentResolver contentResolver,
-            final Bundle extras)
+            final Bundle extras,
+            final File cacheDir)
             throws JSONException {
         if (extras == null) {
             return null;
         }
         final JSONObject item = toJSONObject(
                 contentResolver,
-                (Uri) extras.get(Intent.EXTRA_STREAM));
+                (Uri) extras.get(Intent.EXTRA_STREAM),
+                cacheDir);
         if (item == null) {
             return null;
         }
@@ -114,14 +127,16 @@ class Serializer {
      * See Intent.ACTION_VIEW for details. */
     public static JSONArray itemsFromData(
             final ContentResolver contentResolver,
-            final Uri uri)
+            final Uri uri,
+            final File cacheDir)
             throws JSONException {
         if (uri == null) {
             return null;
         }
         final JSONObject item = toJSONObject(
                 contentResolver,
-                uri);
+                uri,
+                cacheDir);
         if (item == null) {
             return null;
         }
@@ -136,11 +151,12 @@ class Serializer {
      *    "type" of data;
      *    "uri" itself;
      *    "path" to the file, if applicable.
-     *    "data" for the file.
+     *    "thumb" path to thumb.
      */
     public static JSONObject toJSONObject(
             final ContentResolver contentResolver,
-            final Uri uri)
+            final Uri uri,
+            final File cacheDir)
             throws JSONException {
         if (uri == null) {
             return null;
@@ -150,6 +166,7 @@ class Serializer {
         json.put("type", type);
         json.put("uri", uri);
         json.put("path", getRealPathFromURI(contentResolver, uri));
+        json.put("thumb", getThumbPath(contentResolver, cacheDir, uri));
         return json;
     }
 
@@ -188,5 +205,47 @@ class Serializer {
 		cursor.close();
 		return result;
 	}
+
+    /** Creates a thumbnail for an image or video, stores to temp, and returns a URI */
+    private static String getThumbPath(
+            final ContentResolver contentResolver,
+            final File cacheDir,
+            final Uri uri) {
+        try {
+            // Get thumbnail image
+            final Bitmap bitmap;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                bitmap = contentResolver.loadThumbnail(uri, new Size(100, 100), null);
+            } else {
+                bitmap = MediaStore.Images.Thumbnails.getThumbnail(contentResolver, Long.parseLong(uri.getLastPathSegment()), MediaStore.Images.Thumbnails.MINI_KIND, null);
+            }
+
+            // Compress image
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+
+            // Create file
+            final File outputFile = createNewTempImage(cacheDir);
+
+            // Write file to disk
+            try (OutputStream outputStream = new FileOutputStream(outputFile)) {
+                baos.writeTo(outputStream);
+            }
+
+            // Return URI
+            return outputFile.toURI().toString();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    private static File createNewTempImage(
+            File cacheDir) throws IOException {
+        final String id = UUID.randomUUID().toString();
+        final String fileName = "thumb_" + id;
+        return File.createTempFile(fileName, ".jpg", cacheDir);
+    }
 }
 // vim: ts=4:sw=4:et

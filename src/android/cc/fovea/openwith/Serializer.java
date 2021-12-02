@@ -163,10 +163,13 @@ class Serializer {
         }
         final JSONObject json = new JSONObject();
         final String type = contentResolver.getType(uri);
+        final String path = getRealPathFromURI(contentResolver, uri);
         json.put("type", type);
         json.put("uri", uri);
-        json.put("path", getRealPathFromURI(contentResolver, uri));
+        json.put("path", path);
         json.put("thumb", getThumbPath(contentResolver, cacheDir, uri));
+        final File file = new File(path);
+        json.put("date", file.lastModified() / 1000);
         return json;
     }
 

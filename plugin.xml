@@ -77,7 +77,8 @@ SOFTWARE.
         <hook type="after_plugin_install" src="hooks/iosCopyShareExtension.js" />
         <hook type="before_prepare" src="hooks/iosCopyShareExtension.js" />
         <hook type="after_prepare" src="hooks/iosAddTarget.js" />
-        <hook type="before_plugin_uninstall" src="hooks/iosRemoveTarget.js" />
+        <hook type="before_plugin_uninstall" src="hooks/iosRemoveTarget.js" />`
+        <hook type="before_compile" src="hooks/iosSetProvisioningProfile.js" />
 
         <framework src="MobileCoreServices.framework" />
     </platform>

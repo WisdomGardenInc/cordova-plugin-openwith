@@ -1,5 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <Social/Social.h>
+#import <AVFoundation/AVAsset.h>
+#import <AVFoundation/AVAssetImageGenerator.h>
 #import "ShareViewController.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 
@@ -115,7 +117,7 @@
       [self debug:[NSString stringWithFormat:@"item provider = %@", itemProvider]];
 
       [itemProvider loadItemForTypeIdentifier:@"public.movie" options:nil completionHandler: ^(NSURL* item, NSError *error) {
-        NSString *fileUrl = [self saveFileToAppGroupFolder:item];
+        NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
         NSString *suggestedName = item.lastPathComponent;
 
         NSString *uti = @"public.movie";
@@ -130,11 +132,12 @@
         NSString *mimeType =  [self mimeTypeFromUti:registeredType];
         NSDictionary *dict = @{
           @"text" : self.contentText,
-          @"fileUrl" : fileUrl,
+          @"uri" : [fileUrlObject absoluteString],
           @"uti"  : uti,
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
-          @"type" : mimeType
+          @"type" : mimeType,
+          @"thumb" : [self getMovieThumb:fileUrlObject]
         };
 
         [items addObject:dict];
@@ -155,6 +158,7 @@
         NSString *suggestedName = @"";
         NSString *uti = @"public.image";
         NSString *mimeType = @"";
+        NSString *thumbPath = @"";
 
         if([(NSObject*)data isKindOfClass:[UIImage class]]) {
           UIImage* image = (UIImage*) data;
@@ -167,6 +171,7 @@
             fileUrl = targetUrl.absoluteString;
             suggestedName = targetUrl.lastPathComponent;
             mimeType = @"image/png";
+            thumbPath = [self getImageThumb:image];
           }
         }
 
@@ -174,8 +179,13 @@
           NSURL* item = (NSURL*) data;
           NSString *registeredType = nil;
 
-          fileUrl = [self saveFileToAppGroupFolder:item];
+          NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
+          fileUrl = [fileUrlObject absoluteString];
           suggestedName = item.lastPathComponent;
+
+          NSData* thumbData = [NSData dataWithContentsOfURL:fileUrlObject];
+          UIImage* imageForThumb = [UIImage imageWithData:thumbData];
+          thumbPath = [self getImageThumb:imageForThumb];
 
           if ([itemProvider.registeredTypeIdentifiers count] > 0) {
             registeredType = itemProvider.registeredTypeIdentifiers[0];
@@ -188,99 +198,13 @@
 
         NSDictionary *dict = @{
           @"text" : self.contentText,
-          @"fileUrl" : fileUrl,
+          @"uri" : fileUrl,
           @"uti"  : uti,
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
-          @"type" : mimeType
+          @"type" : mimeType,
+          @"thumb" : thumbPath
         };
-
-        [items addObject:dict];
-
-        --remainingAttachments;
-        if (remainingAttachments == 0) {
-          [self sendResults:results];
-        }
-      }];
-    }
-
-    // FILE
-    else if ([itemProvider hasItemConformingToTypeIdentifier:@"public.file-url"]) {
-      [self debug:[NSString stringWithFormat:@"item provider = %@", itemProvider]];
-
-      [itemProvider loadItemForTypeIdentifier:@"public.file-url" options:nil completionHandler: ^(NSURL* item, NSError *error) {
-        NSString *fileUrl = [self saveFileToAppGroupFolder:item];
-        NSString *suggestedName = item.lastPathComponent;
-
-        NSString *uti = @"public.file-url";
-        NSString *registeredType = nil;
-
-        if ([itemProvider.registeredTypeIdentifiers count] > 0) {
-          registeredType = itemProvider.registeredTypeIdentifiers[0];
-        } else {
-          registeredType = uti;
-        }
-
-        NSString *mimeType =  [self mimeTypeFromUti:registeredType];
-        NSDictionary *dict = @{
-          @"text" : self.contentText,
-          @"fileUrl" : fileUrl,
-          @"uti"  : uti,
-          @"utis" : itemProvider.registeredTypeIdentifiers,
-          @"name" : suggestedName,
-          @"type" : mimeType
-        };
-
-        [items addObject:dict];
-
-        --remainingAttachments;
-        if (remainingAttachments == 0) {
-          [self sendResults:results];
-        }
-      }];
-    }
-
-    // URL
-    else if ([itemProvider hasItemConformingToTypeIdentifier:@"public.url"]) {
-      [self debug:[NSString stringWithFormat:@"item provider = %@", itemProvider]];
-
-      [itemProvider loadItemForTypeIdentifier:@"public.url" options:nil completionHandler: ^(NSURL* item, NSError *error) {
-        [self debug:[NSString stringWithFormat:@"public.url = %@", item]];
-
-        NSString *uti = @"public.url";
-        NSDictionary *dict = @{
-          @"data" : item.absoluteString,
-          @"uti": uti,
-          @"utis": itemProvider.registeredTypeIdentifiers,
-          @"name": @"",
-          @"type": [self mimeTypeFromUti:uti],
-        };
-
-        [items addObject:dict];
-
-        --remainingAttachments;
-        if (remainingAttachments == 0) {
-          [self sendResults:results];
-        }
-      }];
-    }
-
-    // TEXT
-    else if ([itemProvider hasItemConformingToTypeIdentifier:@"public.text"]) {
-      [self debug:[NSString stringWithFormat:@"item provider = %@", itemProvider]];
-
-      [itemProvider loadItemForTypeIdentifier:@"public.text" options:nil completionHandler: ^(NSString* item, NSError *error) {
-        [self debug:[NSString stringWithFormat:@"public.text = %@", item]];
-
-        NSString *uti = @"public.text";
-        NSDictionary *dict = @{
-          @"text" : self.contentText,
-          @"data" : item,
-          @"uti": uti,
-          @"utis": itemProvider.registeredTypeIdentifiers,
-          @"name": @"",
-          @"type": [self mimeTypeFromUti:uti],
-       };
 
         [items addObject:dict];
 
@@ -322,6 +246,45 @@
   return @[];
 }
 
+- (NSString*) getMovieThumb: (NSURL*)url {
+    AVURLAsset *asset = [[AVURLAsset alloc] initWithURL:url options:nil];
+    AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
+        generator.appliesPreferredTrackTransform=TRUE;
+    NSError *error = NULL;
+    CMTime thumbTime = CMTimeMakeWithSeconds(0,30);
+
+    CGImageRef refImg = [generator copyCGImageAtTime:thumbTime actualTime:NULL error:&error];
+    if(error) {
+        NSLog(@"%@", [error localizedDescription]);
+    }
+    UIImage *frameImage= [[UIImage alloc] initWithCGImage:refImg];
+    NSData *imageData = UIImageJPEGRepresentation(frameImage, 0.2);
+    NSString *filePath = [[self tempFilePath:@".jpg" :@"-thumb"] absoluteString];
+    [imageData writeToFile:[filePath substringFromIndex:6] atomically:YES];
+    return filePath;
+}
+
+- (NSString*) getImageThumb: (UIImage*)image {
+    if(image.CGImage == nil) {
+        @try {
+            CIImage* ciImage = image.CIImage;
+            CGImageRef cgImage = [[[CIContext alloc] initWithOptions:nil] createCGImage:ciImage fromRect:ciImage.extent];
+            image = [UIImage imageWithCGImage: cgImage];
+        }
+        @catch(id anException) {}
+    }
+    NSData *imageData = UIImageJPEGRepresentation(image, 0.2);
+    NSString *filePath = [[self tempFilePath:@".jpg" :@"-thumb"] absoluteString];
+    [imageData writeToFile:[filePath substringFromIndex:6] atomically:YES];
+    return filePath;
+}
+
+- (NSURL*) tempFilePath: (NSString*)ext :(NSString*)suffix {
+    NSString* uuid = [[[NSUUID alloc] init] UUIDString];
+    NSString* filename = [uuid stringByAppendingString:suffix];
+    return [[self.fileManager containerURLForSecurityApplicationGroupIdentifier:SHAREEXT_GROUP_IDENTIFIER] URLByAppendingPathComponent:[filename stringByAppendingString:ext]];
+}
+
 - (NSString *) mimeTypeFromUti: (NSString*)uti {
   if (uti == nil) { return nil; }
 
@@ -331,11 +294,10 @@
   return ret == nil ? uti : ret;
 }
 
-- (NSString *) saveFileToAppGroupFolder: (NSURL*)url {
+- (NSURL *) saveFileToAppGroupFolder: (NSURL*)url {
   NSURL *targetUrl = [[self.fileManager containerURLForSecurityApplicationGroupIdentifier:SHAREEXT_GROUP_IDENTIFIER] URLByAppendingPathComponent:url.lastPathComponent];
   [self.fileManager copyItemAtURL:url toURL:targetUrl error:nil];
-
-  return targetUrl.absoluteString;
+  return targetUrl;
 }
 
 @end

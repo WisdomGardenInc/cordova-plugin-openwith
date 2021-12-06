@@ -53,7 +53,7 @@ module.exports = function (context) {
   var deferral = new Q.defer();
 
   var profileId = (() => {
-    var arg = process.argv.find(a => a.startsWith('--extensionProvisioningProfile'))
+    var arg = process.argv.find(a => a.startsWith('--shareExtProvProf'))
     if (arg && arg.split('=').length > 1) {
       return arg.split('=')[1]
     }

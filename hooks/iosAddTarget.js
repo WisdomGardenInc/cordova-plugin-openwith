@@ -293,12 +293,16 @@ module.exports = function (context) {
     });
 
     var configurations = pbxProject.pbxXCBuildConfigurationSection();
+    var iosTargetVersion;
     for (var key in configurations) {
       if (typeof configurations[key].buildSettings !== 'undefined') {
         var buildSettingsObj = configurations[key].buildSettings;
         if (typeof buildSettingsObj['PRODUCT_NAME'] !== 'undefined') {
           buildSettingsObj['CODE_SIGN_ENTITLEMENTS'] = '"ShareExtension/ShareExtension-Entitlements.plist"';
           var productName = buildSettingsObj['PRODUCT_NAME'];
+          if(buildSettingsObj['IPHONEOS_DEPLOYMENT_TARGET']) {
+            iosTargetVersion = buildSettingsObj['IPHONEOS_DEPLOYMENT_TARGET']
+          }
           if (productName.indexOf('ShareExt') >= 0) {
             buildSettingsObj['PRODUCT_BUNDLE_IDENTIFIER'] = bundleIdentifier+BUNDLE_SUFFIX;
           }
@@ -310,7 +314,7 @@ module.exports = function (context) {
     var PROVISIONING_PROFILE = getCordovaParameter(configXml, 'SHAREEXT_PROVISIONING_PROFILE');
     var DEVELOPMENT_TEAM = getCordovaParameter(configXml, 'SHAREEXT_DEVELOPMENT_TEAM');
     console.log('Adding team', DEVELOPMENT_TEAM, 'and provisoning profile', PROVISIONING_PROFILE);
-    if (PROVISIONING_PROFILE || DEVELOPMENT_TEAM) {
+    if (PROVISIONING_PROFILE || DEVELOPMENT_TEAM || iosTargetVersion) {
       var configurations = pbxProject.pbxXCBuildConfigurationSection();
       for (var key in configurations) {
         if (typeof configurations[key].buildSettings !== 'undefined') {
@@ -324,6 +328,9 @@ module.exports = function (context) {
               }
               if(DEVELOPMENT_TEAM) {
                 buildSettingsObj['DEVELOPMENT_TEAM'] = DEVELOPMENT_TEAM;
+              }
+              if(iosTargetVersion) {
+                buildSettingsObj['IPHONEOS_DEPLOYMENT_TARGET'] = iosTargetVersion;
               }
               buildSettingsObj['CODE_SIGN_STYLE'] = 'Manual';
               buildSettingsObj['CODE_SIGN_IDENTITY'] = mode.indexOf('Release') >= 0 ? '"iPhone Distribution"' : "'iPhone Developer'";

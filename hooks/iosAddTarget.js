@@ -310,18 +310,23 @@ module.exports = function (context) {
     var PROVISIONING_PROFILE = getCordovaParameter(configXml, 'SHAREEXT_PROVISIONING_PROFILE');
     var DEVELOPMENT_TEAM = getCordovaParameter(configXml, 'SHAREEXT_DEVELOPMENT_TEAM');
     console.log('Adding team', DEVELOPMENT_TEAM, 'and provisoning profile', PROVISIONING_PROFILE);
-    if (PROVISIONING_PROFILE && DEVELOPMENT_TEAM) {
+    if (PROVISIONING_PROFILE || DEVELOPMENT_TEAM) {
       var configurations = pbxProject.pbxXCBuildConfigurationSection();
       for (var key in configurations) {
         if (typeof configurations[key].buildSettings !== 'undefined') {
           var buildSettingsObj = configurations[key].buildSettings;
+          const mode = configurations[key].name
           if (typeof buildSettingsObj['PRODUCT_NAME'] !== 'undefined') {
             var productName = buildSettingsObj['PRODUCT_NAME'];
             if (productName.indexOf('ShareExt') >= 0) {
-              buildSettingsObj['PROVISIONING_PROFILE'] = PROVISIONING_PROFILE;
-              buildSettingsObj['DEVELOPMENT_TEAM'] = DEVELOPMENT_TEAM;
+              if(PROVISIONING_PROFILE) {
+                buildSettingsObj['PROVISIONING_PROFILE'] = PROVISIONING_PROFILE;
+              }
+              if(DEVELOPMENT_TEAM) {
+                buildSettingsObj['DEVELOPMENT_TEAM'] = DEVELOPMENT_TEAM;
+              }
               buildSettingsObj['CODE_SIGN_STYLE'] = 'Manual';
-              buildSettingsObj['CODE_SIGN_IDENTITY'] = '"iPhone Distribution"';
+              buildSettingsObj['CODE_SIGN_IDENTITY'] = mode.indexOf('Release') >= 0 ? '"iPhone Distribution"' : "'iPhone Developer'";
               console.log('Added signing identities for extension!');
             }
           }

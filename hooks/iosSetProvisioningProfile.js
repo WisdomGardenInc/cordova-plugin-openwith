@@ -1,4 +1,5 @@
 const PLUGIN_ID = 'cc.fovea.cordova.openwith';
+const BUNDLE_SUFFIX = '.shareextension';
 
 var fs = require('fs')
 var path = require('path')
@@ -9,6 +10,12 @@ function iosFolder(context) {
   return context.opts.cordova.project
     ? context.opts.cordova.project.root
     : path.join(context.opts.projectRoot, 'platforms/ios/')
+}
+
+function getBundleId(context, configXml) {
+  var elementTree = require('elementtree');
+  var etree = elementTree.parse(configXml);
+  return etree.getroot().get('id');
 }
 
 // Determine the full path to the app's xcode project file.
@@ -79,14 +86,19 @@ module.exports = function (context) {
     configXml = configXml.substring(configXml.indexOf('<'))
   }
 
-  var profileId = (() => {
-    var arg = process.argv.find(a => a.startsWith('--shareExtProvProf'))
-    if (arg && arg.split('=').length > 1) {
-      return arg.split('=')[1]
-    }
-  })()
-  if (profileId) {
+  var bundleId = getBundleId(context, configXml)
+  var extensionBundle = bundleId + BUNDLE_SUFFIX
+
+  var buildJsonPath = path.join(context.opts.projectRoot, 'build.json')
+  var buildJson = null
+  if(fs.existsSync(buildJsonPath)) {
+    buildJson = require(buildJsonPath)
+  }
+  if (buildJson) {
     var devTeam = getCordovaParameter(configXml, 'SHAREEXT_DEVELOPMENT_TEAM')
+    if(devTeam) {
+      devTeam = buildJson && buildJson.ios && buildJson.ios.debug && buildJson.ios.debug.developmentTeam
+    }
     findXCodeproject(context, function (projectFolder) {
       var pbxProjectPath = path.join(projectFolder, 'project.pbxproj')
       var pbxProject = parsePbxProject(context, pbxProjectPath)
@@ -97,14 +109,18 @@ module.exports = function (context) {
           var buildSettingsObj = configurations[key].buildSettings
           if (typeof buildSettingsObj['PRODUCT_NAME'] !== 'undefined') {
             var productName = buildSettingsObj['PRODUCT_NAME']
-            if (productName.indexOf('ShareExt') >= 0 && mode.indexOf('Release') >= 0) {
-              buildSettingsObj['PROVISIONING_PROFILE'] = profileId
+            if (productName.indexOf('ShareExt') >= 0) {
+              var buildMode = mode.indexOf('Debug') >= 0 ? 'debug' : 'release'
+              var profileId = buildJson && buildJson.ios && buildJson.ios[buildMode] && buildJson.ios[buildMode].provisioningProfile && buildJson.ios[buildMode].provisioningProfile[extensionBundle]
+              if(profileId) {
+                buildSettingsObj['PROVISIONING_PROFILE'] = profileId
+              }
               if (devTeam) {
                 buildSettingsObj['DEVELOPMENT_TEAM'] = devTeam
               }
               buildSettingsObj['CODE_SIGN_STYLE'] = 'Manual'
-              buildSettingsObj['CODE_SIGN_IDENTITY'] = '"iPhone Distribution"'
-              console.log('Added fastlane provisioning profile + dev team to share extension release')
+              buildSettingsObj['CODE_SIGN_IDENTITY'] = buildMode === 'release' ? '"iPhone Distribution"' : '"iPhone Developer"'
+              console.log('Added fastlane provisioning profile: ' + profileId + ', dev team: ' + devTeam + ', for mode: ' + buildMode)
             }
           }
         }

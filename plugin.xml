@@ -79,6 +79,7 @@ SOFTWARE.
         <hook type="after_prepare" src="hooks/iosAddTarget.js" />
         <hook type="before_plugin_uninstall" src="hooks/iosRemoveTarget.js" />`
         <hook type="before_compile" src="hooks/iosSetProvisioningProfile.js" />
+        <hook type="before_run" src="hooks/iosSetProvisioningProfile.js" />
 
         <framework src="MobileCoreServices.framework" />
     </platform>

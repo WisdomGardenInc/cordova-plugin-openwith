@@ -28,14 +28,20 @@
                 <integer>2</integer>
                 <key>NSExtensionActivationRule</key>
                 <dict>
+                    <key>NSExtensionActivationSupportsAttachmentsWithMaxCount</key>
+                    <integer>30</integer>
                     <key>NSExtensionActivationSupportsAttachmentsWithMinCount</key>
                     <integer>1</integer>
+                    <key>NSExtensionActivationSupportsFileWithMaxCount</key>
+                    <integer>30</integer>
                     <key>NSExtensionActivationSupportsImageWithMaxCount</key>
                     <integer>30</integer>
                     <key>NSExtensionActivationSupportsMovieWithMaxCount</key>
                     <integer>10</integer>
                     <key>NSExtensionActivationSupportsText</key>
-                    <true/>
+                    <false/>
+                    <key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+                    <integer>30</integer>
                 </dict>
                 <key>NSExtensionActivationUsesStrictMatching</key>
                 <integer>1</integer>

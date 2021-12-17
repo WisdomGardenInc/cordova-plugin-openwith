@@ -2,6 +2,7 @@
 #import <Social/Social.h>
 #import <AVFoundation/AVAsset.h>
 #import <AVFoundation/AVAssetImageGenerator.h>
+#import <AVFoundation/AVMetadataItem.h>
 #import "ShareViewController.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 
@@ -120,6 +121,10 @@
         NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
         NSString *suggestedName = item.lastPathComponent;
 
+        AVURLAsset *anAsset = [[AVURLAsset alloc] initWithURL:item options:nil];
+        NSDate *creationDate = (NSDate *)anAsset.creationDate.value;
+        int dateInt = round([creationDate timeIntervalSince1970]);
+
         NSString *uti = @"public.movie";
         NSString *registeredType = nil;
 
@@ -137,7 +142,8 @@
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
           @"type" : mimeType,
-          @"thumb" : [self getMovieThumb:fileUrlObject]
+          @"thumb" : [self getMovieThumb:fileUrlObject],
+          @"date": [NSNumber numberWithInt:dateInt]
         };
 
         [items addObject:dict];

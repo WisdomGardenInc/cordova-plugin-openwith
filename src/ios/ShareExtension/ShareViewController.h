@@ -25,5 +25,5 @@
 // THE SOFTWARE.
 //
 
-#define SHAREEXT_GROUP_IDENTIFIER @"group.__BUNDLE_IDENTIFIER__"
-#define SHAREEXT_URL_SCHEME @"__URL_SCHEME__"
+#define SHAREEXT_GROUP_IDENTIFIER @"group.com.wisdomgarden.trpc"
+#define SHAREEXT_URL_SCHEME @"tronclass"

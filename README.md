@@ -54,9 +54,9 @@ On the Cordova App side, the plugin checks listens for app start or resume event
 Here's the promised one liner:
 
 ```
-cordova plugin add cc.fovea.cordova.openwith \
+cordova plugin add @wisdomgarden/openwith \
   --variable ANDROID_MIME_TYPE="image/*" \
-  --variable IOS_URL_SCHEME=ccfoveaopenwithdemo \
+  --variable IOS_URL_SCHEME=tronclass \
   --variable IOS_UNIFORM_TYPE_IDENTIFIER=public.image
 ```
 
@@ -83,7 +83,7 @@ Use the `ANDROID_EXTRA_ACTIONS` to accept additional actions. The variable shoul
 
 ```
 MY_EXTRA_ACTIONS='<action android:name="android.intent.action.VIEW" />'
-cordova plugin add cc.fovea.cordova.openwith \
+cordova plugin add @wisdomgarden/openwith \
   --variable ANDROID_MIME_TYPE="image/*" \
   --variable "ANDROID_EXTRA_ACTIONS=$MY_EXTRA_ACTIONS"
 ```

@@ -1,9 +1,9 @@
 {
-  "name": "cc.fovea.cordova.openwith",
+  "name": "@wisdomgarden/openwith",
   "version": "2.1.0",
   "description": "Cordova \"Open With\" plugin for iOS and Android",
   "cordova": {
-    "id": "cc.fovea.cordova.openwith",
+    "id": "@wisdomgarden/openwith",
     "platforms": [
       "android",
       "ios"
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/j3k0/cordova-plugin-openwith.git"
+    "url": "https://github.com/WisdomGardenInc/cordova-plugin-openwith"
   },
   "keywords": [
     "ecosystem:cordova",
@@ -36,9 +36,9 @@
   "author": "Jean-Christophe Hoelt <hoelt@fovea.cc>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/j3k0/cordova-plugin-openwith/issues"
+    "url": "https://github.com/WisdomGardenInc/cordova-plugin-openwith/issues"
   },
-  "homepage": "https://github.com/j3k0/cordova-plugin-openwith",
+  "homepage": "https://github.com/WisdomGardenInc/cordova-plugin-openwith",
   "# Dependencies required by the hooks": "",
   "dependencies": {
     "file-system": "^2.2.2",
@@ -62,10 +62,10 @@
   },
   "# White list the files to pack by npm publish": "",
   "files": [
-    "src/android/cc/fovea/openwith/ByteStreams.java",
-    "src/android/cc/fovea/openwith/OpenWithPlugin.java",
-    "src/android/cc/fovea/openwith/PluginResultSender.java",
-    "src/android/cc/fovea/openwith/Serializer.java",
+    "src/android/com/wisdomgarden/trpc/openwith/ByteStreams.java",
+    "src/android/com/wisdomgarden/trpc/openwith/OpenWithPlugin.java",
+    "src/android/com/wisdomgarden/trpc/openwith/PluginResultSender.java",
+    "src/android/com/wisdomgarden/trpc/openwith/Serializer.java",
     "src/ios/OpenWithPlugin.m",
     "src/ios/ShareExtension/MainInterface.storyboard",
     "src/ios/ShareExtension/ShareExtension-Entitlements.plist",

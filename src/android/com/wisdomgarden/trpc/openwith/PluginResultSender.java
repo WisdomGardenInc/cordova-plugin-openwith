@@ -1,4 +1,4 @@
-package cc.fovea.openwith;
+package com.wisdomgarden.trpc.openwith;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.PluginResult;

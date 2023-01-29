@@ -17,7 +17,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -291,8 +290,7 @@ public class OpenWithPlugin extends CordovaPlugin {
         try {
             final ContentResolver contentResolver = this.cordova
                     .getActivity().getApplicationContext().getContentResolver();
-            final File cacheDir = this.cordova.getContext().getCacheDir();
-            return Serializer.toJSONObject(contentResolver, intent, cacheDir);
+            return Serializer.toJSONObject(contentResolver, intent);
         } catch (JSONException e) {
             log(ERROR, "Error converting intent to JSON: " + e.getMessage());
             log(ERROR, Arrays.toString(e.getStackTrace()));

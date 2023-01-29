@@ -4,28 +4,22 @@ import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
-import android.util.Size;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Handle serialization of Android objects ready to be sent to javascript.
@@ -48,19 +42,18 @@ class Serializer {
      */
     public static JSONObject toJSONObject(
             final ContentResolver contentResolver,
-            final Intent intent,
-            final File cacheDir)
+            final Intent intent)
             throws JSONException {
         JSONArray items = null;
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                items = itemsFromClipData(contentResolver, intent.getClipData(), cacheDir);
+                items = itemsFromClipData(contentResolver, intent.getClipData());
             }
             if (items == null || items.length() == 0) {
-                items = itemsFromExtras(contentResolver, intent.getExtras(), cacheDir);
+                items = itemsFromExtras(contentResolver, intent.getExtras());
             }
             if (items == null || items.length() == 0) {
-                items = itemsFromData(contentResolver, intent.getData(), cacheDir);
+                items = itemsFromData(contentResolver, intent.getData());
             }
         } catch (Exception e) {
             Log.e("OpenWithPlugin Serializer:", e.toString());
@@ -107,14 +100,13 @@ class Serializer {
      */
     public static JSONArray itemsFromClipData(
             final ContentResolver contentResolver,
-            final ClipData clipData,
-            final File cacheDir)
+            final ClipData clipData)
             throws JSONException {
         if (clipData != null) {
             final int clipItemCount = clipData.getItemCount();
             JSONObject[] items = new JSONObject[clipItemCount];
             for (int i = 0; i < clipItemCount; i++) {
-                items[i] = toJSONObject(contentResolver, clipData.getItemAt(i).getUri(), cacheDir);
+                items[i] = toJSONObject(contentResolver, clipData.getItemAt(i).getUri());
             }
 
             List<JSONObject> filteredList = new ArrayList<>();
@@ -138,8 +130,7 @@ class Serializer {
      */
     public static JSONArray itemsFromExtras(
             final ContentResolver contentResolver,
-            final Bundle extras,
-            final File cacheDir)
+            final Bundle extras)
             throws JSONException {
 
         if (extras == null) {
@@ -162,8 +153,7 @@ class Serializer {
             Uri uri = uris.get(i);
             JSONObject item = toJSONObject(
                     contentResolver,
-                    uri,
-                    cacheDir);
+                    uri);
             if (item != null) {
                 filteredList.add(item);
                 if (filteredList.size() >= MAX_ATTACHMENT_COUNT) {
@@ -181,16 +171,14 @@ class Serializer {
      */
     public static JSONArray itemsFromData(
             final ContentResolver contentResolver,
-            final Uri uri,
-            final File cacheDir)
+            final Uri uri)
             throws JSONException {
         if (uri == null) {
             return null;
         }
         final JSONObject item = toJSONObject(
                 contentResolver,
-                uri,
-                cacheDir);
+                uri);
         if (item == null) {
             return null;
         }
@@ -206,12 +194,10 @@ class Serializer {
      * "type" of data;
      * "uri" itself;
      * "path" to the file, if applicable.
-     * "thumb" path to thumb.
      */
-    public static JSONObject toJSONObject(
+    private static JSONObject toJSONObject(
             final ContentResolver contentResolver,
-            final Uri uri,
-            final File cacheDir)
+            final Uri uri)
             throws JSONException {
         if (uri == null) {
             return null;
@@ -225,7 +211,6 @@ class Serializer {
         json.put("type", type);
         json.put("uri", uri);
         json.put("path", path);
-        json.put("thumb", getThumbPath(contentResolver, cacheDir, uri));
         final File file = new File(path);
         json.put("date", file.lastModified() / 1000);
         return json;
@@ -274,45 +259,4 @@ class Serializer {
             return "";
         }
     }
-
-    /**
-     * Creates a thumbnail for an image or video, stores to temp, and returns a URI
-     */
-    private static String getThumbPath(final ContentResolver contentResolver, final File cacheDir, final Uri uri) {
-        try {
-            // Get thumbnail image
-            final Bitmap bitmap;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                bitmap = contentResolver.loadThumbnail(uri, new Size(100, 100), null);
-            } else {
-                bitmap = MediaStore.Images.Thumbnails.getThumbnail(contentResolver, Long.parseLong(uri.getLastPathSegment()), MediaStore.Images.Thumbnails.MINI_KIND, null);
-            }
-
-            // Compress image
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos);
-
-            // Create file
-            final File outputFile = createNewTempImage(cacheDir);
-
-            // Write file to disk
-            try (OutputStream outputStream = new FileOutputStream(outputFile)) {
-                baos.writeTo(outputStream);
-            }
-
-            // Return URI
-            return outputFile.toURI().toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "";
-        }
-    }
-
-    private static File createNewTempImage(
-            File cacheDir) throws IOException {
-        final String id = UUID.randomUUID().toString();
-        final String fileName = "thumb_" + id;
-        return File.createTempFile(fileName, ".jpg", cacheDir);
-    }
 }
-// vim: ts=4:sw=4:et

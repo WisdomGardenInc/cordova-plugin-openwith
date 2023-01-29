@@ -1,36 +1,47 @@
 package com.wisdomgarden.trpc.openwith;
 
-import android.graphics.Bitmap;
-
 import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.util.Size;
 
-import java.util.UUID;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.File;
-import java.io.OutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Handle serialization of Android objects ready to be sent to javascript.
  */
 class Serializer {
 
-    /** Convert an intent to JSON.
-     *
+
+    private static int MAX_ATTACHMENT_COUNT = OpenWithPlugin.DEFAULT_ATTACHMENTS_WITH_MAX_COUNT;
+
+    public static void setMaxAttachmentCount(int maxAttachmentCount) {
+        MAX_ATTACHMENT_COUNT = maxAttachmentCount;
+    }
+
+    /**
+     * Convert an intent to JSON.
+     * <p>
      * This actually only exports stuff necessary to see file content
      * (streams or clip data) sent with the intent.
      * If none are specified, null is return.
@@ -41,18 +52,25 @@ class Serializer {
             final File cacheDir)
             throws JSONException {
         JSONArray items = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            items = itemsFromClipData(contentResolver, intent.getClipData(), cacheDir);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                items = itemsFromClipData(contentResolver, intent.getClipData(), cacheDir);
+            }
+            if (items == null || items.length() == 0) {
+                items = itemsFromExtras(contentResolver, intent.getExtras(), cacheDir);
+            }
+            if (items == null || items.length() == 0) {
+                items = itemsFromData(contentResolver, intent.getData(), cacheDir);
+            }
+        } catch (Exception e) {
+            Log.e("OpenWithPlugin Serializer:", e.toString());
+            items = null;
         }
-        if (items == null || items.length() == 0) {
-            items = itemsFromExtras(contentResolver, intent.getExtras(), cacheDir);
-        }
-        if (items == null || items.length() == 0) {
-            items = itemsFromData(contentResolver, intent.getData(), cacheDir);
-        }
+
         if (items == null) {
             return null;
         }
+
         final JSONObject action = new JSONObject();
         action.put("action", translateAction(intent.getAction()));
         action.put("exit", readExitOnSent(intent.getExtras()));
@@ -62,7 +80,7 @@ class Serializer {
 
     public static String translateAction(final String action) {
         if ("android.intent.action.SEND".equals(action) ||
-            "android.intent.action.SEND_MULTIPLE".equals(action)) {
+                "android.intent.action.SEND_MULTIPLE".equals(action)) {
             return "SEND";
         } else if ("android.intent.action.VIEW".equals(action)) {
             return "VIEW";
@@ -70,9 +88,11 @@ class Serializer {
         return action;
     }
 
-    /** Read the value of "exit_on_sent" in the intent's extra.
-     *
-     * Defaults to false. */
+    /**
+     * Read the value of "exit_on_sent" in the intent's extra.
+     * <p>
+     * Defaults to false.
+     */
     public static boolean readExitOnSent(final Bundle extras) {
         if (extras == null) {
             return false;
@@ -80,9 +100,11 @@ class Serializer {
         return extras.getBoolean("exit_on_sent", false);
     }
 
-    /** Extract the list of items from clip data (if available).
-     *
-     * Defaults to null. */
+    /**
+     * Extract the list of items from clip data (if available).
+     * <p>
+     * Defaults to null.
+     */
     public static JSONArray itemsFromClipData(
             final ContentResolver contentResolver,
             final ClipData clipData,
@@ -94,37 +116,69 @@ class Serializer {
             for (int i = 0; i < clipItemCount; i++) {
                 items[i] = toJSONObject(contentResolver, clipData.getItemAt(i).getUri(), cacheDir);
             }
-            return new JSONArray(items);
+
+            List<JSONObject> filteredList = new ArrayList<>();
+            for (int i = 0; i < items.length; i++) {
+                if (items[i] != null) {
+                    filteredList.add(items[i]);
+                    if (filteredList.size() >= MAX_ATTACHMENT_COUNT) {
+                        break;
+                    }
+                }
+            }
+            return new JSONArray(filteredList);
         }
         return null;
     }
 
-    /** Extract the list of items from the intent's extra stream.
-     *
-     * See Intent.EXTRA_STREAM for details. */
+    /**
+     * Extract the list of items from the intent's extra stream.
+     * <p>
+     * See Intent.EXTRA_STREAM for details.
+     */
     public static JSONArray itemsFromExtras(
             final ContentResolver contentResolver,
             final Bundle extras,
             final File cacheDir)
             throws JSONException {
+
         if (extras == null) {
             return null;
         }
-        final JSONObject item = toJSONObject(
-                contentResolver,
-                (Uri) extras.get(Intent.EXTRA_STREAM),
-                cacheDir);
-        if (item == null) {
-            return null;
+
+
+        ArrayList<Uri> uris;
+        Object obj = extras.get(Intent.EXTRA_STREAM);
+        if (obj instanceof ArrayList) {
+            uris = (ArrayList<Uri>) obj;
+        } else {
+            uris = new ArrayList<>();
+            uris.add((Uri) extras.get(Intent.EXTRA_STREAM));
         }
-        final JSONObject[] items = new JSONObject[1];
-        items[0] = item;
-        return new JSONArray(items);
+
+        List<JSONObject> filteredList = new ArrayList<>();
+
+        for (int i = 0; i < uris.size(); i++) {
+            Uri uri = uris.get(i);
+            JSONObject item = toJSONObject(
+                    contentResolver,
+                    uri,
+                    cacheDir);
+            if (item != null) {
+                filteredList.add(item);
+                if (filteredList.size() >= MAX_ATTACHMENT_COUNT) {
+                    break;
+                }
+            }
+        }
+        return new JSONArray(filteredList);
     }
 
-    /** Extract the list of items from the intent's getData
-     *
-     * See Intent.ACTION_VIEW for details. */
+    /**
+     * Extract the list of items from the intent's getData
+     * <p>
+     * See Intent.ACTION_VIEW for details.
+     */
     public static JSONArray itemsFromData(
             final ContentResolver contentResolver,
             final Uri uri,
@@ -145,13 +199,14 @@ class Serializer {
         return new JSONArray(items);
     }
 
-    /** Convert an Uri to JSON object.
-     *
+    /**
+     * Convert an Uri to JSON object.
+     * <p>
      * Object will include:
-     *    "type" of data;
-     *    "uri" itself;
-     *    "path" to the file, if applicable.
-     *    "thumb" path to thumb.
+     * "type" of data;
+     * "uri" itself;
+     * "path" to the file, if applicable.
+     * "thumb" path to thumb.
      */
     public static JSONObject toJSONObject(
             final ContentResolver contentResolver,
@@ -164,6 +219,9 @@ class Serializer {
         final JSONObject json = new JSONObject();
         final String type = contentResolver.getType(uri);
         final String path = getRealPathFromURI(contentResolver, uri);
+        if (path == null || path.equals("")) {
+            return null;
+        }
         json.put("type", type);
         json.put("uri", uri);
         json.put("path", path);
@@ -173,7 +231,9 @@ class Serializer {
         return json;
     }
 
-    /** Return data contained at a given Uri as Base64. Defaults to null. */
+    /**
+     * Return data contained at a given Uri as Base64. Defaults to null.
+     */
     public static String getDataFromURI(
             final ContentResolver contentResolver,
             final Uri uri) {
@@ -181,39 +241,44 @@ class Serializer {
             final InputStream inputStream = contentResolver.openInputStream(uri);
             final byte[] bytes = ByteStreams.toByteArray(inputStream);
             return Base64.encodeToString(bytes, Base64.NO_WRAP);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             return "";
         }
     }
 
-	/** Convert the Uri to the direct file system path of the image file.
-     *
-     * source: https://stackoverflow.com/questions/20067508/get-real-path-from-uri-android-kitkat-new-storage-access-framework/20402190?noredirect=1#comment30507493_20402190 */
-	public static String getRealPathFromURI(
+    /**
+     * Convert the Uri to the direct file system path of the image file.
+     * <p>
+     * source: https://stackoverflow.com/questions/20067508/get-real-path-from-uri-android-kitkat-new-storage-access-framework/20402190?noredirect=1#comment30507493_20402190
+     */
+    public static String getRealPathFromURI(
             final ContentResolver contentResolver,
             final Uri uri) {
-		final String[] proj = { MediaStore.Images.Media.DATA };
-		final Cursor cursor = contentResolver.query(uri, proj, null, null, null);
-		if (cursor == null) {
-			return "";
-		}
-		final int column_index = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
-		if (column_index < 0) {
-			cursor.close();
-			return "";
-		}
-		cursor.moveToFirst();
-		final String result = cursor.getString(column_index);
-		cursor.close();
-		return result;
-	}
+        final String[] proj = {MediaStore.Images.Media.DATA};
+        final Cursor cursor = contentResolver.query(uri, proj, null, null, null);
+        if (cursor == null) {
+            return "";
+        }
+        final int column_index = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
+        if (column_index < 0) {
+            cursor.close();
+            return "";
+        }
+        cursor.moveToFirst();
+        try {
+            final String result = cursor.getString(column_index);
+            cursor.close();
+            return result;
+        } catch (Exception e) {
+            cursor.close();
+            return "";
+        }
+    }
 
-    /** Creates a thumbnail for an image or video, stores to temp, and returns a URI */
-    private static String getThumbPath(
-            final ContentResolver contentResolver,
-            final File cacheDir,
-            final Uri uri) {
+    /**
+     * Creates a thumbnail for an image or video, stores to temp, and returns a URI
+     */
+    private static String getThumbPath(final ContentResolver contentResolver, final File cacheDir, final Uri uri) {
         try {
             // Get thumbnail image
             final Bitmap bitmap;
@@ -237,8 +302,7 @@ class Serializer {
 
             // Return URI
             return outputFile.toURI().toString();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return "";
         }

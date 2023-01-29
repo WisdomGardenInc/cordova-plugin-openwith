@@ -1,7 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <Social/Social.h>
 #import <AVFoundation/AVAsset.h>
-#import <AVFoundation/AVAssetImageGenerator.h>
 #import <AVFoundation/AVMetadataItem.h>
 #import "ShareViewController.h"
 #import <MobileCoreServices/MobileCoreServices.h>
@@ -142,7 +141,6 @@
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
           @"type" : mimeType,
-          @"thumb" : [self getMovieThumb:fileUrlObject],
           @"date": [NSNumber numberWithInt:dateInt]
         };
 
@@ -164,7 +162,6 @@
         NSString *suggestedName = @"";
         NSString *uti = @"public.image";
         NSString *mimeType = @"";
-        NSString *thumbPath = @"";
 
         if([(NSObject*)data isKindOfClass:[UIImage class]]) {
           UIImage* image = (UIImage*) data;
@@ -177,7 +174,6 @@
             fileUrl = targetUrl.absoluteString;
             suggestedName = targetUrl.lastPathComponent;
             mimeType = @"image/png";
-            thumbPath = [self getImageThumb:image];
           }
         }
 
@@ -188,10 +184,6 @@
           NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
           fileUrl = [fileUrlObject absoluteString];
           suggestedName = item.lastPathComponent;
-
-          NSData* thumbData = [NSData dataWithContentsOfURL:fileUrlObject];
-          UIImage* imageForThumb = [UIImage imageWithData:thumbData];
-          thumbPath = [self getImageThumb:imageForThumb];
 
           if ([itemProvider.registeredTypeIdentifiers count] > 0) {
             registeredType = itemProvider.registeredTypeIdentifiers[0];
@@ -208,8 +200,7 @@
           @"uti"  : uti,
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
-          @"type" : mimeType,
-          @"thumb" : thumbPath
+          @"type" : mimeType
         };
 
         [items addObject:dict];
@@ -250,45 +241,6 @@
 - (NSArray*) configurationItems {
   // To add configuration options via table cells at the bottom of the sheet, return an array of SLComposeSheetConfigurationItem here.
   return @[];
-}
-
-- (NSString*) getMovieThumb: (NSURL*)url {
-    AVURLAsset *asset = [[AVURLAsset alloc] initWithURL:url options:nil];
-    AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:asset];
-        generator.appliesPreferredTrackTransform=TRUE;
-    NSError *error = NULL;
-    CMTime thumbTime = CMTimeMakeWithSeconds(0,30);
-
-    CGImageRef refImg = [generator copyCGImageAtTime:thumbTime actualTime:NULL error:&error];
-    if(error) {
-        NSLog(@"%@", [error localizedDescription]);
-    }
-    UIImage *frameImage= [[UIImage alloc] initWithCGImage:refImg];
-    NSData *imageData = UIImageJPEGRepresentation(frameImage, 0.2);
-    NSString *filePath = [[self tempFilePath:@".jpg" :@"-thumb"] absoluteString];
-    [imageData writeToFile:[filePath substringFromIndex:6] atomically:YES];
-    return filePath;
-}
-
-- (NSString*) getImageThumb: (UIImage*)image {
-    if(image.CGImage == nil) {
-        @try {
-            CIImage* ciImage = image.CIImage;
-            CGImageRef cgImage = [[[CIContext alloc] initWithOptions:nil] createCGImage:ciImage fromRect:ciImage.extent];
-            image = [UIImage imageWithCGImage: cgImage];
-        }
-        @catch(id anException) {}
-    }
-    NSData *imageData = UIImageJPEGRepresentation(image, 0.2);
-    NSString *filePath = [[self tempFilePath:@".jpg" :@"-thumb"] absoluteString];
-    [imageData writeToFile:[filePath substringFromIndex:6] atomically:YES];
-    return filePath;
-}
-
-- (NSURL*) tempFilePath: (NSString*)ext :(NSString*)suffix {
-    NSString* uuid = [[[NSUUID alloc] init] UUIDString];
-    NSString* filename = [uuid stringByAppendingString:suffix];
-    return [[self.fileManager containerURLForSecurityApplicationGroupIdentifier:SHAREEXT_GROUP_IDENTIFIER] URLByAppendingPathComponent:[filename stringByAppendingString:ext]];
 }
 
 - (NSString *) mimeTypeFromUti: (NSString*)uti {

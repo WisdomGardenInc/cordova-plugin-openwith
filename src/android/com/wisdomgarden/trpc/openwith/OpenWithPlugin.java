@@ -54,6 +54,8 @@ public class OpenWithPlugin extends CordovaPlugin {
      */
     private int verbosity = INFO;
 
+    public static final int DEFAULT_ATTACHMENTS_WITH_MAX_COUNT = 5;
+
     /**
      * Log to the console if verbosity level is greater or equal to level
      */
@@ -96,8 +98,6 @@ public class OpenWithPlugin extends CordovaPlugin {
      * Intents added before the handler has been registered
      */
     private ArrayList pendingIntents = new ArrayList(); //NOPMD
-
-    public static int DEFAULT_ATTACHMENTS_WITH_MAX_COUNT = 5;
 
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         log(DEBUG, "initialize()");

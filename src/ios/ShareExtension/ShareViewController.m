@@ -211,6 +211,48 @@
         }
       }];
     }
+    // FILE
+    else if ([itemProvider hasItemConformingToTypeIdentifier:@"public.url"]) {
+      [self debug:[NSString stringWithFormat:@"item provider = %@", itemProvider]];
+
+      [itemProvider loadItemForTypeIdentifier:@"public.url" options:nil completionHandler: ^(NSURL* item, NSError *error) {
+        [self debug:[NSString stringWithFormat:@"public.url = %@", item]];
+          
+        NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
+        NSString *suggestedName = item.lastPathComponent;
+        
+        AVURLAsset *anAsset = [[AVURLAsset alloc] initWithURL:item options:nil];
+        NSDate *creationDate = (NSDate *)anAsset.creationDate.value;
+        int dateInt = round([creationDate timeIntervalSince1970]);
+          
+        NSString *uti = @"public.url";
+        NSString *registeredType = nil;
+
+        if ([itemProvider.registeredTypeIdentifiers count] > 0) {
+            registeredType = itemProvider.registeredTypeIdentifiers[0];
+        } else {
+            registeredType = uti;
+        }
+
+        NSString *mimeType =  [self mimeTypeFromUti:registeredType];
+        NSDictionary *dict = @{
+          @"text" : self.contentText,
+          @"uri" : [fileUrlObject absoluteString],
+          @"uti"  : uti,
+          @"utis" : itemProvider.registeredTypeIdentifiers,
+          @"name" : suggestedName,
+          @"type" : mimeType,
+          @"date": [NSNumber numberWithInt:dateInt]
+        };
+
+        [items addObject:dict];
+
+        --remainingAttachments;
+        if (remainingAttachments == 0) {
+          [self sendResults:results];
+        }
+      }];
+    }
 
     // Unhandled data type
     else {

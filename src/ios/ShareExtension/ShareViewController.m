@@ -120,10 +120,6 @@
         NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
         NSString *suggestedName = item.lastPathComponent;
 
-        AVURLAsset *anAsset = [[AVURLAsset alloc] initWithURL:item options:nil];
-        NSDate *creationDate = (NSDate *)anAsset.creationDate.value;
-        int dateInt = round([creationDate timeIntervalSince1970]);
-
         NSString *uti = @"public.movie";
         NSString *registeredType = nil;
 
@@ -140,8 +136,7 @@
           @"uti"  : uti,
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
-          @"type" : mimeType,
-          @"date": [NSNumber numberWithInt:dateInt]
+          @"type" : mimeType
         };
 
         [items addObject:dict];
@@ -220,10 +215,6 @@
           
         NSURL* fileUrlObject = [self saveFileToAppGroupFolder:item];
         NSString *suggestedName = item.lastPathComponent;
-        
-        AVURLAsset *anAsset = [[AVURLAsset alloc] initWithURL:item options:nil];
-        NSDate *creationDate = (NSDate *)anAsset.creationDate.value;
-        int dateInt = round([creationDate timeIntervalSince1970]);
           
         NSString *uti = @"public.url";
         NSString *registeredType = nil;
@@ -241,8 +232,7 @@
           @"uti"  : uti,
           @"utis" : itemProvider.registeredTypeIdentifiers,
           @"name" : suggestedName,
-          @"type" : mimeType,
-          @"date": [NSNumber numberWithInt:dateInt]
+          @"type" : mimeType
         };
 
         [items addObject:dict];

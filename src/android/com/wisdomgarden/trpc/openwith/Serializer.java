@@ -207,8 +207,13 @@ class Serializer {
         if (path == null || path.equals("")) {
             return null;
         }
+
+        int lastSlashIndex = path.lastIndexOf("/");
+        String name = path.substring(lastSlashIndex + 1);
+
         json.put("type", type);
         json.put("uri", uri);
+        json.put("name", name);
         json.put("path", path);
         return json;
     }

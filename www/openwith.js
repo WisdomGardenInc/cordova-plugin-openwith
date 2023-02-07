@@ -153,25 +153,6 @@ function initOpenwithPlugin (root) {
     return handlers.length
   }
 
-  openwith.load = function (dataDescriptor, successCallback, errorCallback) {
-    var loadSuccess = function (base64) {
-      dataDescriptor.base64 = base64
-      if (successCallback) {
-        successCallback(base64, dataDescriptor)
-      }
-    }
-    var loadError = function (err) {
-      if (errorCallback) {
-        errorCallback(err, dataDescriptor)
-      }
-    }
-    if (dataDescriptor.base64) {
-      loadSuccess(dataDescriptor.base64)
-    } else {
-      cordova.exec(loadSuccess, loadError, PLUGIN_NAME, 'load', [dataDescriptor])
-    }
-  }
-
   openwith.exit = function () {
     log(DEBUG, 'exit()')
     cordova.exec(null, null, PLUGIN_NAME, 'exit', [])

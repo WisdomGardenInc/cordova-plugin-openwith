@@ -1,21 +1,17 @@
 package com.wisdomgarden.trpc.openwith;
 
 import android.content.ClipData;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -236,20 +232,5 @@ class Serializer {
         json.put("name", pathData.fileName);
 
         return json;
-    }
-
-    /**
-     * Return data contained at a given Uri as Base64. Defaults to null.
-     */
-    public static String getDataFromURI(
-            final ContentResolver contentResolver,
-            final Uri uri) {
-        try {
-            final InputStream inputStream = contentResolver.openInputStream(uri);
-            final byte[] bytes = ByteStreams.toByteArray(inputStream);
-            return Base64.encodeToString(bytes, Base64.NO_WRAP);
-        } catch (IOException e) {
-            return "";
-        }
     }
 }

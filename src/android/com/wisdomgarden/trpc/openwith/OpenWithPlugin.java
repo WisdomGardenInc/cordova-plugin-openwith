@@ -1,11 +1,9 @@
 package com.wisdomgarden.trpc.openwith;
 
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.util.Log;
 
 import org.apache.cordova.CallbackContext;
@@ -147,8 +145,6 @@ public class OpenWithPlugin extends CordovaPlugin {
             return setHandler(data, callbackContext);
         } else if ("setLogger".equals(action)) {
             return setLogger(data, callbackContext);
-        } else if ("load".equals(action)) {
-            return load(data, callbackContext);
         } else if ("exit".equals(action)) {
             return exit(data, callbackContext);
         }
@@ -218,32 +214,6 @@ public class OpenWithPlugin extends CordovaPlugin {
         return PluginResultSender.noResult(context, true);
     }
 
-    public boolean load(final JSONArray data, final CallbackContext context) {
-        log(DEBUG, "load()");
-        if (data.length() != 1) {
-            log(WARN, "load() -> invalidAction");
-            return false;
-        }
-        final ContentResolver contentResolver = this.cordova
-                .getActivity().getApplicationContext().getContentResolver();
-        cordova.getThreadPool().execute(new Runnable() {
-            public void run() {
-                try {
-                    final JSONObject fileDescriptor = data.getJSONObject(0);
-                    final Uri uri = Uri.parse(fileDescriptor.getString("uri"));
-                    final String data = Serializer.getDataFromURI(contentResolver, uri);
-                    final PluginResult result = new PluginResult(PluginResult.Status.OK, data);
-                    context.sendPluginResult(result);
-                    log(DEBUG, "load() " + uri + " -> ok");
-                } catch (JSONException e) {
-                    final PluginResult result = new PluginResult(PluginResult.Status.ERROR, e.getMessage());
-                    context.sendPluginResult(result);
-                    log(DEBUG, "load() -> json error");
-                }
-            }
-        });
-        return true;
-    }
 
     /**
      * This is called when a new intent is sent while the app is already opened.

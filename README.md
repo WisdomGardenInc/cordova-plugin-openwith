@@ -130,25 +130,6 @@ function setupOpenwith() {
       console.log('  utis: ', item.utis);
       console.log('  path: ', item.path);   // path on the device, generally undefined
     }
-
-    // ...
-    // Here, you probably want to do something useful with the data
-    // ...
-    // An example...
-
-    if (intent.items.length > 0) {
-      cordova.openwith.load(intent.items[0], function(data, item) {
-
-        // data is a long base64 string with the content of the file
-        console.log("the item weights " + data.length + " bytes");
-        uploadToServer(item);
-
-        // "exit" when done.
-        // Note that there is no need to wait for the upload to finish,
-        // the app can continue while in background.
-        if (intent.exit) { cordova.openwith.exit(); }
-      });
-    }
     else {
       if (intent.exit) { cordova.openwith.exit(); }
     }
@@ -199,28 +180,13 @@ Here are the possible actions.
 A data descriptor describe one file. It is a javascript object with the following fields:
 
  - `uri`: uri to the file.
-   - _probably NOT a web uri, use `load()` if you want the data from this uri._
  - `type`: the mime type.
+ - `isTemp`: bool is temp file
  - `text`: text entered by the user when sharing (**iOS only**)
  - `name`: suggested file name, generally undefined.
  - `path`: path on the device, generally undefined.
  - `utis`: list of UTIs the file belongs to (**iOS only**).
- - `base64`: a long base64 string with the content of the file.
-   - _might be undefined until `load()` has been called and completed successfully._
 
-### cordova.openwith.load(dataDescriptor, loadSuccessCallback, loadErrorCallback)
-
-Load data for an item. `dataDescriptor` is an item in an intent's items list, see the section about `addHandler()` above for details.
-
-**loadSuccessCallback**: function (base64, dataDescriptor)
-
-When data has been successfully loaded, `loadSuccessCallback` will be called. It is expected to have the following signature: `function (base64, dataDescriptor)`
-
-`base64` is a long string containing the data. `dataDescriptor` is the loaded `dataDescriptor`, extended to contain the `base64` field.
-
-**loadErrorCallback**: function (err, dataDescriptor)
-
-Called when data can't be loaded.
 
 ### cordova.openwith.exit()
 

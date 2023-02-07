@@ -226,15 +226,6 @@ static NSDictionary* launchOptions = nil;
     [self checkForFileToShare];
 }
 
-// Load data from URL
-- (void) load:(CDVInvokedUrlCommand*)command {
-    [self debug:@"[load]"];
-    // Base64 data already loaded, so this shouldn't happen
-    // the function is defined just to prevent crashes from unexpected client behaviours.
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Load, it shouldn't have been!"];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
 // Exit after sharing
 - (void) exit:(CDVInvokedUrlCommand*)command {
     [self debug:[NSString stringWithFormat:@"[exit] %@", self.backURL]];

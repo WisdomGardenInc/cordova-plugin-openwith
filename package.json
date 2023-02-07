@@ -67,6 +67,7 @@
     "src/android/com/wisdomgarden/trpc/openwith/OpenWithPlugin.java",
     "src/android/com/wisdomgarden/trpc/openwith/PluginResultSender.java",
     "src/android/com/wisdomgarden/trpc/openwith/Serializer.java",
+    "src/android/com/wisdomgarden/trpc/openwith/PathUtil.java",
     "src/ios/OpenWithPlugin.m",
     "src/ios/ShareExtension/MainInterface.storyboard",
     "src/ios/ShareExtension/ShareExtension-Entitlements.plist",

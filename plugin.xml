@@ -114,6 +114,7 @@ SOFTWARE.
         <source-file src="src/android/com/wisdomgarden/trpc/openwith/PluginResultSender.java" target-dir="src/com/wisdomgarden/trpc/openwith" />
         <source-file src="src/android/com/wisdomgarden/trpc/openwith/Serializer.java" target-dir="src/com/wisdomgarden/trpc/openwith" />
         <source-file src="src/android/com/wisdomgarden/trpc/openwith/ByteStreams.java" target-dir="src/com/wisdomgarden/trpc/openwith" />
+        <source-file src="src/android/com/wisdomgarden/trpc/openwith/PathUtil.java" target-dir="src/com/wisdomgarden/trpc/openwith" />
     </platform>
 
 <!--

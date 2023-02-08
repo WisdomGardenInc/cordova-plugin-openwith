@@ -183,7 +183,9 @@ static NSDictionary* launchOptions = nil;
 
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:@{
         @"text": text,
-        @"items": processedItems
+        @"items": processedItems,
+        @"receivedCounts": dict[@"receivedCounts"],
+        @"maxAttachmentCount": dict[@"maxAttachmentCount"]
     }];
 
     pluginResult.keepCallback = [NSNumber numberWithBool:YES];

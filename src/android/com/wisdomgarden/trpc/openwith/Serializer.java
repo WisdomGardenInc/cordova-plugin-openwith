@@ -15,12 +15,21 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+
+class SharedData {
+    JSONArray items;
+    int receivedCounts;
+
+    public SharedData(int receivedCounts, JSONArray items) {
+        this.receivedCounts = receivedCounts;
+        this.items = items;
+    }
+}
+
 /**
  * Handle serialization of Android objects ready to be sent to javascript.
  */
 class Serializer {
-
-
     private static int MAX_ATTACHMENT_COUNT = OpenWithPlugin.DEFAULT_ATTACHMENTS_WITH_MAX_COUNT;
 
     public static void setMaxAttachmentCount(int maxAttachmentCount) {
@@ -39,29 +48,32 @@ class Serializer {
             final Intent intent,
             final File tmpDir)
             throws JSONException {
-        JSONArray items = null;
+        SharedData sharedData = null;
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                items = itemsFromClipData(context, intent.getClipData(), tmpDir);
+                sharedData = itemsFromClipData(context, intent.getClipData(), tmpDir);
             }
-            if (items == null || items.length() == 0) {
-                items = itemsFromExtras(context, intent.getExtras(), tmpDir);
+            if (sharedData == null || sharedData.items == null || sharedData.items.length() == 0) {
+                sharedData = itemsFromExtras(context, intent.getExtras(), tmpDir);
             }
-            if (items == null || items.length() == 0) {
-                items = itemsFromData(context, intent.getData(), tmpDir);
+            if (sharedData == null || sharedData.items == null || sharedData.items.length() == 0) {
+                sharedData = itemsFromData(context, intent.getData(), tmpDir);
             }
         } catch (Exception e) {
-            items = null;
+            sharedData = null;
         }
 
-        if (items == null) {
+        if (sharedData == null) {
             return null;
         }
 
         final JSONObject action = new JSONObject();
         action.put("action", translateAction(intent.getAction()));
         action.put("exit", readExitOnSent(intent.getExtras()));
-        action.put("items", items);
+        action.put("items", sharedData.items);
+        action.put("receivedCounts", sharedData.receivedCounts);
+        action.put("maxAttachmentCount", MAX_ATTACHMENT_COUNT);
+
         return action;
     }
 
@@ -92,7 +104,7 @@ class Serializer {
      * <p>
      * Defaults to null.
      */
-    public static JSONArray itemsFromClipData(
+    public static SharedData itemsFromClipData(
             final Context context,
             final ClipData clipData,
             final File tmpDir) throws JSONException {
@@ -131,7 +143,7 @@ class Serializer {
                 }
             }
         }
-        return new JSONArray(filteredList);
+        return new SharedData(clipItemCount, new JSONArray(filteredList));
     }
 
 
@@ -140,7 +152,7 @@ class Serializer {
      * <p>
      * See Intent.EXTRA_STREAM for details.
      */
-    public static JSONArray itemsFromExtras(
+    public static SharedData itemsFromExtras(
             final Context context,
             final Bundle extras,
             final File tmpDir) throws JSONException {
@@ -171,7 +183,7 @@ class Serializer {
                 }
             }
         }
-        return new JSONArray(filteredList);
+        return new SharedData(uris.size(), new JSONArray(filteredList));
     }
 
     /**
@@ -179,7 +191,7 @@ class Serializer {
      * <p>
      * See Intent.ACTION_VIEW for details.
      */
-    public static JSONArray itemsFromData(
+    public static SharedData itemsFromData(
             final Context context,
             final Uri uri,
             final File tmpDir) throws JSONException {
@@ -193,7 +205,7 @@ class Serializer {
         }
         final JSONObject[] items = new JSONObject[1];
         items[0] = item;
-        return new JSONArray(items);
+        return new SharedData(items.length, new JSONArray(items));
     }
 
     /**

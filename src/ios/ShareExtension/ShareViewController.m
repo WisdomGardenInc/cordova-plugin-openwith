@@ -102,11 +102,17 @@
   [self setup];
   [self debug:@"[viewDidAppear]"];
 
+   NSString *plistFilePath = [[NSBundle mainBundle] pathForResource: @"Info" ofType: @"plist"];
+   NSMutableDictionary *plistDict = [[NSMutableDictionary alloc] initWithContentsOfFile:plistFilePath]; 
+   NSNumber *maxAttachmentCount = [[[[plistDict valueForKey:@"NSExtension"] valueForKey:@"NSExtensionAttributes"] valueForKey:@"NSExtensionActivationRule"] valueForKey:@"NSExtensionActivationSupportsAttachmentsWithMaxCount"];
+    
   __block int remainingAttachments = ((NSExtensionItem*)self.extensionContext.inputItems[0]).attachments.count;
   __block NSMutableArray *items = [[NSMutableArray alloc] init];
   __block NSDictionary *results = @{
     @"text" : self.contentText,
     @"items": items,
+    @"receivedCounts": [NSNumber numberWithInteger:remainingAttachments],
+    @"maxAttachmentCount": maxAttachmentCount,
   };
 
   for (NSItemProvider* itemProvider in ((NSExtensionItem*)self.extensionContext.inputItems[0]).attachments) {

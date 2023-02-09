@@ -1,7 +1,9 @@
 package com.wisdomgarden.trpc.openwith;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.util.Log;
@@ -30,6 +32,7 @@ public class OpenWithPlugin extends CordovaPlugin {
      * How the plugin name shows in logs
      */
     private final String PLUGIN_NAME = "OpenWithPlugin";
+    private final String SAVED_KEY = "sharedData";
 
     /**
      * Maximal verbosity, log everything
@@ -73,41 +76,29 @@ public class OpenWithPlugin extends CordovaPlugin {
                 Log.e(PLUGIN_NAME, message);
                 break;
         }
-        if (level >= verbosity && loggerContext != null) {
-            final PluginResult result = new PluginResult(
-                    PluginResult.Status.OK,
-                    String.format("%d:%s", level, message));
-            result.setKeepCallback(true);
-            loggerContext.sendPluginResult(result);
-        }
     }
-
-    /**
-     * Callback to the javascript onNewFile method
-     */
-    private CallbackContext handlerContext;
-
-    /**
-     * Callback to the javascript logger method
-     */
-    private CallbackContext loggerContext;
-
 
     /**
      * Intents added before the handler has been registered
      */
     private ArrayList pendingIntents = new ArrayList(); //NOPMD
 
+    private SharedPreferences prefs;
+
+    private int maxAttachmentCount = DEFAULT_ATTACHMENTS_WITH_MAX_COUNT;
+
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         log(DEBUG, "initialize()");
         try {
             Context context = this.cordova.getContext();
             ApplicationInfo applicationInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), PackageManager.GET_META_DATA);
-            Serializer.setMaxAttachmentCount(applicationInfo.metaData.getInt("OPEN_WITH_ATTACHMENTS_WITH_MAX_COUNT", DEFAULT_ATTACHMENTS_WITH_MAX_COUNT));
+            this.maxAttachmentCount = applicationInfo.metaData.getInt("OPEN_WITH_ATTACHMENTS_WITH_MAX_COUNT", DEFAULT_ATTACHMENTS_WITH_MAX_COUNT);
         } catch (Exception e) {
-            Serializer.setMaxAttachmentCount(DEFAULT_ATTACHMENTS_WITH_MAX_COUNT);
+            this.maxAttachmentCount = DEFAULT_ATTACHMENTS_WITH_MAX_COUNT;
         }
+        Serializer.setMaxAttachmentCount(this.maxAttachmentCount);
 
+        this.prefs = this.cordova.getContext().getSharedPreferences("OpenWithSharedData", Activity.MODE_PRIVATE);
         super.initialize(cordova, webView);
     }
 
@@ -121,8 +112,6 @@ public class OpenWithPlugin extends CordovaPlugin {
     @Override
     public void onReset() {
         verbosity = INFO;
-        handlerContext = null;
-        loggerContext = null;
         pendingIntents.clear();
     }
 
@@ -141,10 +130,8 @@ public class OpenWithPlugin extends CordovaPlugin {
             return setVerbosity(data, callbackContext);
         } else if ("init".equals(action)) {
             return init(data, callbackContext);
-        } else if ("setHandler".equals(action)) {
-            return setHandler(data, callbackContext);
-        } else if ("setLogger".equals(action)) {
-            return setLogger(data, callbackContext);
+        } else if ("fetchSharedData".equals(action)) {
+            return fetchSharedData(data, callbackContext);
         } else if ("exit".equals(action)) {
             return exit(data, callbackContext);
         }
@@ -175,6 +162,7 @@ public class OpenWithPlugin extends CordovaPlugin {
             log(WARN, "init() -> invalidAction");
             return false;
         }
+        verbosity = INFO;
         onNewIntent(cordova.getActivity().getIntent());
         log(DEBUG, "init() -> ok");
         return PluginResultSender.ok(context);
@@ -192,26 +180,25 @@ public class OpenWithPlugin extends CordovaPlugin {
         return PluginResultSender.ok(context);
     }
 
-    public boolean setHandler(final JSONArray data, final CallbackContext context) {
-        log(DEBUG, "setHandler() " + data);
+    public boolean fetchSharedData(final JSONArray data, final CallbackContext context) {
+        log(DEBUG, "fetchSharedData() " + data);
         if (data.length() != 0) {
-            log(WARN, "setHandler() -> invalidAction");
+            log(WARN, "fetchSharedData() -> invalidAction");
             return false;
         }
-        handlerContext = context;
-        log(DEBUG, "setHandler() -> ok");
-        return PluginResultSender.noResult(context, true);
-    }
 
-    public boolean setLogger(final JSONArray data, final CallbackContext context) {
-        log(DEBUG, "setLogger() " + data);
-        if (data.length() != 0) {
-            log(WARN, "setLogger() -> invalidAction");
-            return false;
+        JSONObject sharedData = getSharedData();
+        this.removeSharedData();
+        if (sharedData != null) {
+
+            final PluginResult result = new PluginResult(PluginResult.Status.OK, sharedData);
+
+            context.sendPluginResult(result);
+            return true;
+        } else {
+            return PluginResultSender.ok(context);
         }
-        loggerContext = context;
-        log(DEBUG, "setLogger() -> ok");
-        return PluginResultSender.noResult(context, true);
+
     }
 
 
@@ -236,22 +223,55 @@ public class OpenWithPlugin extends CordovaPlugin {
      */
     private void processPendingIntents() {
         log(DEBUG, "processPendingIntents()");
-        if (handlerContext == null) {
-            return;
-        }
+        JSONObject jsonObject = getSharedData();
         for (int i = 0; i < pendingIntents.size(); i++) {
-            sendIntentToJavascript((JSONObject) pendingIntents.get(i));
+            jsonObject = mergeIntends((JSONObject) pendingIntents.get(i), jsonObject);
         }
         pendingIntents.clear();
+
+        if (jsonObject != null) {
+            saveSharedData(jsonObject);
+        }
     }
 
     /**
      * Calls the javascript intent handlers.
      */
-    private void sendIntentToJavascript(final JSONObject intent) {
-        final PluginResult result = new PluginResult(PluginResult.Status.OK, intent);
-        result.setKeepCallback(true);
-        handlerContext.sendPluginResult(result);
+    private JSONObject mergeIntends(final JSONObject intent, JSONObject jsonObject) {
+        if (jsonObject == null) {
+            try {
+                jsonObject = new JSONObject();
+                jsonObject.put("action", intent.getString("action"));
+                jsonObject.put("exit", intent.getBoolean("exit"));
+                jsonObject.put("items", intent.getJSONArray("items"));
+                jsonObject.put("receivedCounts", intent.getInt("receivedCounts"));
+                jsonObject.put("maxAttachmentCount", this.maxAttachmentCount);
+            } catch (Exception e) {
+                jsonObject = null;
+            }
+        } else {
+            try {
+
+                JSONArray finalItems = jsonObject.getJSONArray("items");
+                JSONArray items = intent.getJSONArray("items");
+
+                if (finalItems != items) {
+                    int len = items.length();
+                    for (int i = 0; i < len; i++) {
+                        finalItems.put(items.getJSONObject(i));
+                    }
+
+                    jsonObject.put("action", intent.getString("action"));
+                    jsonObject.put("exit", intent.getBoolean("exit"));
+                    jsonObject.put("receivedCounts", finalItems.length());
+                    jsonObject.put("maxAttachmentCount", this.maxAttachmentCount);
+                }
+            } catch (Exception e) {
+                //
+            }
+        }
+
+        return jsonObject;
     }
 
     /**
@@ -270,5 +290,49 @@ public class OpenWithPlugin extends CordovaPlugin {
             return null;
         }
     }
+
+    private void saveSharedData(JSONObject sharedData) {
+        try {
+            SharedPreferences.Editor editor = this.prefs.edit();
+
+            editor.putString(SAVED_KEY, sharedData.toString());
+
+            editor.commit();
+
+        } catch (Exception e) {
+            //
+        }
+    }
+
+    private boolean removeSharedData() {
+        try {
+            SharedPreferences.Editor editor = this.prefs.edit();
+
+            editor.remove(SAVED_KEY);
+
+            editor.commit();
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+
+    }
+
+    private JSONObject getSharedData() {
+        String savedData = this.prefs.getString(SAVED_KEY, null);
+        if (savedData == null) {
+            return null;
+        }
+
+        JSONObject data = null;
+        try {
+            data = new JSONObject(savedData);
+        } catch (Exception e) {
+            data = null;
+        }
+
+        return data;
+    }
+
 }
-// vim: ts=4:sw=4:et

@@ -30,15 +30,6 @@ function initOpenwithPlugin (root) {
   // default verbosity level is to show errors only
   var verbosity
 
-  // list of registered handlers
-  var handlers
-
-  // list of intents sent to this app
-  //
-  // it's never cleaned up, so that newly registered handlers (especially those registered a bit too late)
-  // will still receive the list of intents.
-  var intents
-
   // the logger function (defaults to console.log)
   var logger
 
@@ -82,8 +73,6 @@ function initOpenwithPlugin (root) {
   openwith.reset = function () {
     log(DEBUG, 'reset')
     verbosity = openwith.INFO
-    handlers = []
-    intents = []
     logger = console.log
     cordova = root.cordova
     initCalled = false
@@ -124,47 +113,9 @@ function initOpenwithPlugin (root) {
     return 'cordova-plugin-openwith, (c) 2017 fovea.cc'
   }
 
-  var findHandler = function (callback) {
-    for (var i = 0; i < handlers.length; ++i) {
-      if (handlers[i] === callback) {
-        return i
-      }
-    }
-    return -1
-  }
-
-  // registers a intent handler
-  openwith.addHandler = function (callback) {
-    log(DEBUG, 'addHandler()')
-    if (typeof callback !== 'function') {
-      throw new Error('invalid handler function')
-    }
-    if (findHandler(callback) >= 0) {
-      throw new Error('handler already defined')
-    }
-    handlers.push(callback)
-    intents.forEach(function handleIntent (intent) {
-      callback(intent)
-    })
-  }
-
-  openwith.numHandlers = function () {
-    log(DEBUG, 'numHandler()')
-    return handlers.length
-  }
-
   openwith.exit = function () {
     log(DEBUG, 'exit()')
     cordova.exec(null, null, PLUGIN_NAME, 'exit', [])
-  }
-
-  var onNewIntent = function (intent) {
-    log(DEBUG, 'onNewIntent(' + intent.action + ')')
-    // process the new intent
-    handlers.forEach(function (handler) {
-      handler(intent)
-    })
-    intents.push(intent)
   }
 
   // Initialize the native side at startup
@@ -191,14 +142,26 @@ function initOpenwithPlugin (root) {
       log(DEBUG, 'initError()')
       if (errorCallback) errorCallback()
     }
-    var nativeLogger = function (data) {
-      var split = data.split(':')
-      log(+split[0], '[native] ' + split.slice(1).join(':'))
-    }
 
-    cordova.exec(nativeLogger, null, PLUGIN_NAME, 'setLogger', [])
-    cordova.exec(onNewIntent, null, PLUGIN_NAME, 'setHandler', [])
     cordova.exec(initSuccess, initError, PLUGIN_NAME, 'init', [])
+  }
+
+  openwith.fetchSharedData = function () {
+    return new Promise((resolve) => {
+      if (!initCalled) {
+        console.error('should be inited')
+        resolve(null)
+        return
+      }
+
+      var initSuccess = function (data) {
+        resolve(data)
+      }
+      var initError = function () {
+        resolve(null)
+      }
+      cordova.exec(initSuccess, initError, PLUGIN_NAME, 'fetchSharedData', [])
+    })
   }
 
   return openwith

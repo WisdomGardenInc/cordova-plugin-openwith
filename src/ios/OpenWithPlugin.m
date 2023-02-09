@@ -29,8 +29,6 @@ static NSDictionary* launchOptions = nil;
     NSString *_backURL;
 }
 
-@property (nonatomic,retain) NSString* loggerCallback;
-@property (nonatomic,retain) NSString* handlerCallback;
 @property (nonatomic) int verbosityLevel;
 @property (nonatomic,retain) NSUserDefaults *userDefaults;
 @property (nonatomic,retain) NSString *backURL;
@@ -42,8 +40,6 @@ static NSDictionary* launchOptions = nil;
 
 @implementation OpenWithPlugin
 
-@synthesize loggerCallback = _loggerCallback;
-@synthesize handlerCallback = _handlerCallback;
 @synthesize verbosityLevel = _verbosityLevel;
 @synthesize userDefaults = _userDefaults;
 @synthesize backURL = _backURL;
@@ -73,11 +69,6 @@ static NSDictionary* launchOptions = nil;
 - (void) log:(int)level message:(NSString*)message {
     if (level >= self.verbosityLevel) {
         NSLog(@"[OpenWithPlugin.m]%@", message);
-        if (self.loggerCallback != nil) {
-            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:message];
-            pluginResult.keepCallback = [NSNumber  numberWithBool:YES];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:self.loggerCallback];
-        }
     }
 }
 - (void) debug:(NSString*)message { [self log:VERBOSITY_DEBUG message:message]; }
@@ -85,42 +76,15 @@ static NSDictionary* launchOptions = nil;
 - (void) warn:(NSString*)message { [self log:VERBOSITY_WARN message:message]; }
 - (void) error:(NSString*)message { [self log:VERBOSITY_ERROR message:message]; }
 
-- (void) pluginInitialize {
-    // You can listen to more app notifications, see:
-    // http://developer.apple.com/library/ios/#DOCUMENTATION/UIKit/Reference/UIApplication_Class/Reference/Reference.html#//apple_ref/doc/uid/TP40006728-CH3-DontLinkElementID_4
 
-    // NOTE: if you want to use these, make sure you uncomment the corresponding notification handler
-
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onPause) name:UIApplicationDidEnterBackgroundNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onResume) name:UIApplicationWillEnterForegroundNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onOrientationWillChange) name:UIApplicationWillChangeStatusBarOrientationNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onOrientationDidChange) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
-
-    // Added in 2.5.0
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(pageDidLoad:) name:CDVPageDidLoadNotification object:self.webView];
-    //Added in 4.3.0
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewWillAppear:) name:CDVViewWillAppearNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidAppear:) name:CDVViewDidAppearNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewWillDisappear:) name:CDVViewWillDisappearNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidDisappear:) name:CDVViewDidDisappearNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewWillLayoutSubviews:) name:CDVViewWillLayoutSubviewsNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewDidLayoutSubviews:) name:CDVViewDidLayoutSubviewsNotification object:nil];
-    // [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(viewWillTransitionToSize:) name:CDVViewWillTransitionToSizeNotification object:nil];
-    [self onReset];
-    [self info:@"[pluginInitialize] OK"];
-}
-
-- (void) onReset {
-    [self info:@"[onReset]"];
-    self.userDefaults = [[NSUserDefaults alloc] initWithSuiteName:SHAREEXT_GROUP_IDENTIFIER];
-    self.verbosityLevel = VERBOSITY_INFO;
-    self.loggerCallback = nil;
-    self.handlerCallback = nil;
-}
-
-- (void) onResume {
-    [self debug:@"[onResume]"];
-    [self checkForFileToShare];
+- (void) fetchSharedData :(CDVInvokedUrlCommand*)command {
+    [self debug:@"[fetchSharedData]"];
+    CDVPluginResult* pluginResult = [self getSharedData];
+    if(pluginResult != nil) {
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    } else {
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    }
 }
 
 - (void) setVerbosity:(CDVInvokedUrlCommand*)command {
@@ -135,34 +99,12 @@ static NSDictionary* launchOptions = nil;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-- (void) setLogger:(CDVInvokedUrlCommand*)command {
-    self.loggerCallback = command.callbackId;
-    [self debug:[NSString stringWithFormat:@"[setLogger] %@", self.loggerCallback]];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_NO_RESULT];
-    pluginResult.keepCallback = [NSNumber  numberWithBool:YES];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
-- (void) setHandler:(CDVInvokedUrlCommand*)command {
-    self.handlerCallback = command.callbackId;
-    [self debug:[NSString stringWithFormat:@"[setHandler] %@", self.handlerCallback]];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_NO_RESULT];
-    pluginResult.keepCallback = [NSNumber  numberWithBool:YES];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
-- (void) checkForFileToShare {
-    [self debug:@"[checkForFileToShare]"];
-    if (self.handlerCallback == nil) {
-        [self debug:@"[checkForFileToShare] javascript not ready yet."];
-        return;
-    }
-
+-(CDVPluginResult*) getSharedData {
     [self.userDefaults synchronize];
     NSObject *object = [self.userDefaults objectForKey:@"shared"];
     if (object == nil) {
-        [self debug:@"[checkForFileToShare] Nothing to share"];
-        return;
+        [self debug:@"[getSharedData] Nothing to share"];
+        return nil;
     }
 
     // Clean-up the object, assume it's been handled from now, prevent double processing
@@ -170,8 +112,8 @@ static NSDictionary* launchOptions = nil;
 
     // Extract sharing data, make sure that it is valid
     if (![object isKindOfClass:[NSDictionary class]]) {
-        [self debug:@"[checkForFileToShare] Data object is invalid"];
-        return;
+        [self debug:@"[getSharedData] Data object is invalid"];
+        return nil;
     }
     NSDictionary *dict = (NSDictionary*)object;
 
@@ -187,9 +129,8 @@ static NSDictionary* launchOptions = nil;
         @"receivedCounts": dict[@"receivedCounts"],
         @"maxAttachmentCount": dict[@"maxAttachmentCount"]
     }];
-
-    pluginResult.keepCallback = [NSNumber numberWithBool:YES];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.handlerCallback];
+    
+    return pluginResult;
 }
 
 - (NSMutableArray*) processSharedItems:(NSArray*)items {
@@ -211,21 +152,16 @@ static NSDictionary* launchOptions = nil;
     return processedItems;
 }
 
-- (void) setLoggedInStatus:(CDVInvokedUrlCommand*)command {
-    BOOL value = [command argumentAtIndex:0];
-    [self.userDefaults setBool:value forKey:@"loggedIn"];
-    [self.userDefaults synchronize];
-    [self debug:[NSString stringWithFormat:@"[setLoggedInStatus] %d", value]];
-    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+- (void) _init {
+    self.userDefaults = [[NSUserDefaults alloc] initWithSuiteName:SHAREEXT_GROUP_IDENTIFIER];
+    self.verbosityLevel = VERBOSITY_INFO;
 }
 
-// Initialize the plugin
-- (void) init:(CDVInvokedUrlCommand*)command {
-    [self debug:@"[init]"];
+- (void) init:(CDVInvokedUrlCommand*)command  {
+    [self info:@"[init]"];
+    [self _init];
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    [self checkForFileToShare];
 }
 
 // Exit after sharing
@@ -244,4 +180,3 @@ static NSDictionary* launchOptions = nil;
 
 
 @end
-// vim: ts=4:sw=4:et

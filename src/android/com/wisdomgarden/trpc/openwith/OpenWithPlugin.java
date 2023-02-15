@@ -261,8 +261,8 @@ public class OpenWithPlugin extends CordovaPlugin {
                         finalItems.put(items.getJSONObject(i));
                     }
 
-                    jsonObject.put("action", intent.getString("action"));
-                    jsonObject.put("exit", intent.getBoolean("exit"));
+                    jsonObject.put("action", intent.has("action") ? intent.getString("action") : "send");
+                    jsonObject.put("exit", intent.has("exit") ? intent.getBoolean("exit") : false);
                     jsonObject.put("receivedCounts", finalItems.length());
                     jsonObject.put("maxAttachmentCount", this.maxAttachmentCount);
                 }

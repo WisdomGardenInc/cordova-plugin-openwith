@@ -1,6 +1,6 @@
 {
   "name": "@wisdomgarden/openwith",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "originVersion": "2.1.0",
   "description": "Cordova \"Open With\" plugin for iOS and Android",
   "cordova": {

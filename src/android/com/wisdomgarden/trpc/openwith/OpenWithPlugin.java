@@ -241,8 +241,8 @@ public class OpenWithPlugin extends CordovaPlugin {
         if (jsonObject == null) {
             try {
                 jsonObject = new JSONObject();
-                jsonObject.put("action", intent.getString("action"));
-                jsonObject.put("exit", intent.getBoolean("exit"));
+                jsonObject.put("action", intent.has("action") ? intent.getString("action") : "send");
+                jsonObject.put("exit", intent.has("exit") ? intent.getBoolean("exit") : false);
                 jsonObject.put("items", intent.getJSONArray("items"));
                 jsonObject.put("receivedCounts", intent.getInt("receivedCounts"));
                 jsonObject.put("maxAttachmentCount", this.maxAttachmentCount);
@@ -279,8 +279,7 @@ public class OpenWithPlugin extends CordovaPlugin {
      */
     private JSONObject toJSONObject(final Intent intent) {
         try {
-            final Context context = this.cordova
-                    .getActivity().getApplicationContext();
+            final Context context = this.cordova.getActivity().getApplicationContext();
             final File tmpDir = this.cordova.getContext().getCacheDir();
 
             return Serializer.toJSONObject(context, intent, tmpDir);
